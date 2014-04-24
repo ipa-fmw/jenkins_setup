@@ -109,11 +109,9 @@ class JenkinsJob(object):
         self.params['POSTBUILD_TRIGGER'] = ''
         self.params['JOIN_TRIGGER'] = ''
         self.params['PIPELINE_TRIGGER'] = ''
-        self.params['GROOVY_POSTBUILD'] = ''
         self.params['PARAMETERIZED_TRIGGER'] = ''
         self.params['JUNIT_TESTRESULTS'] = ''
         self.params['MAILER'] = ''
-        self.params['POSTBUILD_TASK'] = ''
         self.params['WARNINGS_PUBLISHER'] = ''
         self.params['CPPCHECK_PUBLISHER'] = ''
         self._set_authorization_matrix_param(['read', 'workspace'])
@@ -351,23 +349,6 @@ class JenkinsJob(object):
             return ''
         self.params['PIPELINE_TRIGGER'] = self.job_config_params['pipelinetrigger'].replace('@(PIPELINETRIGGER_PROJECT)',
                                                                                             self._generate_job_list_string(job_type_list))
-
-    def _set_groovypostbuild_param(self, script_type, project_list, behavior):
-        """
-        Sets config for groovypostbuild plugin
-
-        :param script_type: enable, join_enable, disable, ``str``
-        :param project_list: list with names of projects, ``list``
-        :param behavior: when to execute script (0, 1, 2), ``int``
-        """
-
-        if project_list == []:
-            raise Exception('No project is given')
-        if behavior > 2 or behavior < 0 or type(behavior) != int:
-            raise Exception('Invalid behavior number given')
-        script = self.job_config_params['groovypostbuild']['script'][script_type].replace('@(PROJECT_LIST)',
-                                                                                          str(self._generate_job_list(project_list)))
-        self.params['GROOVY_POSTBUILD'] = self.job_config_params['groovypostbuild']['basic'].replace('@(GROOVYPB_SCRIPT)', script).replace('@(GROOVYPB_BEHAVIOR)', str(behavior))
 
     def _get_single_parameterizedtrigger(self, job_type_list, condition='SUCCESS', predefined_param='', subset_filter='', no_param=False):
         """
@@ -795,7 +776,6 @@ class BuildJob(JenkinsJob):
         """
 
         self.params['NODE_LABEL'] = 'master'
-        self.params['POSTBUILD_TASK'] = self.job_config_params['postbuildtask']
 
         # cleanup workspace
         self.params['WS_CLEANUP'] = self.job_config_params['ws_cleanup']
@@ -995,7 +975,6 @@ class TestJob(JenkinsJob):
         """
 
         self.params['NODE_LABEL'] = 'master'
-        self.params['POSTBUILD_TASK'] = self.job_config_params['postbuildtask']
 
         # set blocking behaviour
         self.params['BLOCKING_UPSTREAM'] = 'true'
