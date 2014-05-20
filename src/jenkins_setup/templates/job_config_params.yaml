@@ -99,6 +99,7 @@
     'read': '<permission>hudson.model.Item.Read:@(USERNAME)</permission>'
     'build': '<permission>hudson.model.Item.Build:@(USERNAME)</permission>'
     'workspace': '<permission>hudson.model.Item.Workspace:@(USERNAME)</permission>'
+    'cancel': '<permission>hudson.model.Item.Cancel:@(USERNAME)</permission>'
 
 'parameterizedtrigger':
   'basic':

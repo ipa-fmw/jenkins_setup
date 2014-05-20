@@ -116,14 +116,33 @@ def main():
 
     ### manual pipe starter
     # this pipe starter job won't poll any repository; it has to be started
-    # manually. It triggers the priority build job with a repositories from 
+    # manually. It triggers the prio build job with a repositories from 
     # a pull down menu as parameter
-    job_creator_instance = jenkins_job_creator.PipeStarterManualJob(jenkins_instance, plc_instance, plc_instance.repositories.keys())
+    job_creator_instance = jenkins_job_creator.PipeStarterManualBuildJob(jenkins_instance, plc_instance, plc_instance.repositories.keys())
     if options.delete:
         modified_jobs.append(job_creator_instance.delete_job())
     else:
-        manual_pipe_starter_name = job_creator_instance.create_job()
-        modified_jobs.append(manual_pipe_starter_name)
+        modified_jobs.append(job_creator_instance.create_job())
+
+    # this pipe starter job won't poll any repository; it has to be started
+    # manually. It triggers the prio nongraphics test job with a repositories from 
+    # a pull down menu as parameter
+    if 'nongraphics_test' in job_type_dict:
+        job_creator_instance = jenkins_job_creator.PipeStarterManualNongraphicsTestJob(jenkins_instance, plc_instance, job_type_dict['nongraphics_test'])
+        if options.delete:
+            modified_jobs.append(job_creator_instance.delete_job())
+        else:
+            modified_jobs.append(job_creator_instance.create_job())
+
+    # this pipe starter job won't poll any repository; it has to be started
+    # manually. It triggers the prio graphics test job with a repositories from 
+    # a pull down menu as parameter
+    if 'graphics_test' in job_type_dict:
+        job_creator_instance = jenkins_job_creator.PipeStarterManualGraphicsTestJob(jenkins_instance, plc_instance, job_type_dict['graphics_test'])
+        if options.delete:
+            modified_jobs.append(job_creator_instance.delete_job())
+        else:
+            modified_jobs.append(job_creator_instance.create_job())
 
     ### manual all pipe starter
     # this pipe starter job won't poll any repository; it has to be started
