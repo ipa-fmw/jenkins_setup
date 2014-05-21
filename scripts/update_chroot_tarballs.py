@@ -13,7 +13,7 @@ ARCH = ['i386', 'amd64']
 
 
 def pbuilder_create(basetgz, tarball_dir, dist, arch):
-    command = "sudo pbuilder --create --basetgz " + tarball_dir + "/" + basetgz + " --distribution " + dist + " --architecture " + arch
+    command = "sudo pbuilder --create --basetgz " + tarball_dir + "/" + basetgz + ".tgz" + " --distribution " + dist + " --architecture " + arch
     command = command.split(' ') + ["--components","main restricted universe multiverse"]
     ret_pbuilder = subprocess.call(command)
     if ret_pbuilder != 0:
@@ -23,7 +23,7 @@ def pbuilder_create(basetgz, tarball_dir, dist, arch):
     
 
 def pbuilder_execute(basetgz, tarball_dir, script):
-    command = "sudo pbuilder --execute --basetgz " + tarball_dir + "/" + basetgz + " --save-after-exec -- " + script
+    command = "sudo pbuilder --execute --basetgz " + tarball_dir + "/" + basetgz + ".tgz" + " --save-after-exec -- " + script
     return call(command)
 
 
@@ -106,25 +106,19 @@ def main():
     sys.stdout.flush()
 
     print "\nvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv"
-    print "Set up basic chroot %s" % basic_tarball
-    #result = process_basic_tarball(ssh, basic_tarball, os.getenv("WORKSPACE"),
-    #                               tarball_dir, extended_tarballs, existent_tarballs,
-    #                               apt_cacher_proxy)
-    
-    
-    
     # create basic tarball
+    print "Set up basic chroot %s" % basic_tarball
     tarball_params = get_tarball_params(basic_tarball)
     print "tarball parameter: ", tarball_params
     ret = pbuilder_create(basic_tarball, tarball_dir, tarball_params['ubuntu_distro'], tarball_params['arch'])
     if ret != 0:
         print "Creation of basic tarball failed: ", basic_tarball
-        call("rm -rf "+ tarball_dir + "/" + basic_tarball)
+        call("rm -rf "+ tarball_dir + "/" + basic_tarball + ".tgz")
         sys.exit(1)
     else:
         print "Successful creation of basic tarball: ", basic_tarball
         # change ownership of tarball
-        command = "sudo chown jenkins:jenkins " + tarball_dir + "/" + basic_tarball
+        command = "sudo chown jenkins:jenkins " + tarball_dir + "/" + basic_tarball + ".tgz"
         call(command)
     
     # create extended tarballs 
@@ -132,16 +126,16 @@ def main():
     for tarball in extended_tarballs:
         tarball_params = get_tarball_params(tarball)
         print "tarball parameter: ", tarball_params
-        call("cp " + tarball_dir + "/" + basic_tarball + " " + tarball_dir + "/" + tarball)
+        call("cp " + tarball_dir + "/" + basic_tarball + ".tgz" + " " + tarball_dir + "/" + tarball + ".tgz")
         ret = pbuilder_execute(tarball, tarball_dir, "./install_basics.sh " + tarball_params['ubuntu_distro'] + " " + tarball_params['ros_distro'] + " " + apt_cacher_proxy)
         if ret != 0:
             print "Creation of extended tarball failed: ", tarball
-            call("rm -rf "+ tarball_dir + "/" + tarball)
+            call("rm -rf "+ tarball_dir + "/" + tarball + ".tgz")
             failed_tarballs.append(tarball)
         else:
             print "Successful creation of extended tarball: ", tarball
             # change ownership of tarballs
-            command = "sudo chown jenkins:jenkins " + tarball_dir + "/" + tarball
+            command = "sudo chown jenkins:jenkins " + tarball_dir + "/" + tarball + ".tgz"
             call(command)
 
     if len(failed_tarballs) != 0:
