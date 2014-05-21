@@ -53,6 +53,12 @@ def main():
     tarball_dir = tarball_location_ssh_address.split(':')[1]
 
     try:
+        workspace = os.environ['WORKSPACE']
+    except:
+        workspace = "/tmp"
+    print "workspace", workspace
+
+    try:
         f = urllib2.urlopen(target_platforms_url)
         platforms = yaml.load(f)
     except Exception as ex:
@@ -110,15 +116,15 @@ def main():
     print "Set up basic chroot %s" % basic_tarball
     tarball_params = get_tarball_params(basic_tarball)
     print "tarball parameter: ", tarball_params
-    ret = pbuilder_create(basic_tarball, tarball_dir, tarball_params['ubuntu_distro'], tarball_params['arch'])
+    ret = pbuilder_create(basic_tarball, workspace, tarball_params['ubuntu_distro'], tarball_params['arch'])
     if ret != 0:
         print "Creation of basic tarball failed: ", basic_tarball
-        call("rm -rf "+ tarball_dir + "/" + basic_tarball + ".tgz")
+        call("rm -rf "+ workspace + "/" + basic_tarball + ".tgz")
         sys.exit(1)
     else:
         print "Successful creation of basic tarball: ", basic_tarball
         # change ownership of tarball
-        command = "sudo chown jenkins:jenkins " + tarball_dir + "/" + basic_tarball + ".tgz"
+        command = "sudo chown jenkins:jenkins " + workspace + "/" + basic_tarball + ".tgz"
         call(command)
     
     # create extended tarballs 
@@ -126,23 +132,29 @@ def main():
     for tarball in extended_tarballs:
         tarball_params = get_tarball_params(tarball)
         print "tarball parameter: ", tarball_params
-        call("cp " + tarball_dir + "/" + basic_tarball + ".tgz" + " " + tarball_dir + "/" + tarball + ".tgz")
-        ret = pbuilder_execute(tarball, tarball_dir, "./install_basics.sh " + tarball_params['ubuntu_distro'] + " " + tarball_params['ros_distro'] + " " + apt_cacher_proxy)
+        call("cp " + workspace + "/" + basic_tarball + ".tgz" + " " + workspace + "/" + tarball + ".tgz")
+        ret = pbuilder_execute(tarball, workspace, "./install_basics.sh " + tarball_params['ubuntu_distro'] + " " + tarball_params['ros_distro'] + " " + apt_cacher_proxy)
         if ret != 0:
             print "Creation of extended tarball failed: ", tarball
-            call("rm -rf "+ tarball_dir + "/" + tarball + ".tgz")
+            call("rm -rf "+ workspace + "/" + tarball + ".tgz")
             failed_tarballs.append(tarball)
         else:
             print "Successful creation of extended tarball: ", tarball
             # change ownership of tarballs
-            command = "sudo chown jenkins:jenkins " + tarball_dir + "/" + tarball + ".tgz"
+            command = "sudo chown jenkins:jenkins " + workspace + "/" + tarball + ".tgz"
             call(command)
 
     if len(failed_tarballs) != 0:
         print "Not all tarballs were generated successfully. Failed tarballs: ", failed_tarballs
         sys.exit(1)
+    else:
+        print ""
+        print "All tarballs created successfully"
+        print "  tarball location:", workspace
+        print "  basic tarballs", basic_tarball
+        print "  extended tarballs", extended_tarballs
     
-    sys.exit()
+
  
 
 def put_tarball(ssh, tar_name, from_location, to_location):
