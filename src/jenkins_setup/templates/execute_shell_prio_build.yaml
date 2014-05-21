@@ -21,7 +21,7 @@ fi
 
 new_basetgz=${ubuntu_distro}__${arch}__${ROS_DISTRO}.tgz
 
-basetgz=ipa-jenkins__${ubuntu_distro}__${arch}__${ROS_DISTRO}__${repository}.tgz
+basetgz=@(USERNAME)__${ubuntu_distro}__${arch}__${ROS_DISTRO}__${repository}.tgz
 
 echo "Copying $new_basetgz to $WORKSPACE/chroot_tarballs/in_use/$basetgz"
 
