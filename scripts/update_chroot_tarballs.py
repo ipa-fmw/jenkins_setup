@@ -40,17 +40,12 @@ def main():
     (options, args) = parser.parse_args()
 
     if len(args) < 4:
-        print "Usage: %s tarball_location_ssh_address target_yaml_url ubuntu_distro architecture [apt_cacher_proxy_address]" % (sys.argv[0])
+        print "Usage: %s target_yaml_url ubuntu_distro architecture [apt_cacher_proxy_address]" % (sys.argv[0])
         sys.exit()
 
     print args
 
-    tarball_location_ssh_address = args[0]
-    target_platforms_url = args[1]
-
-    tarball_host = tarball_location_ssh_address.split(':')[0].split('@')[1]
-    tarball_host_username = tarball_location_ssh_address.split('@')[0]
-    tarball_dir = tarball_location_ssh_address.split(':')[1]
+    target_platforms_url = args[0]
 
     try:
         workspace = os.environ['WORKSPACE']
@@ -67,7 +62,7 @@ def main():
         raise ex
 
     # check if given ubuntu distro and arch is supported
-    ubuntu_distro = args[2]
+    ubuntu_distro = args[1]
     supported_ubuntu_distros = []
     for ros_distro_dict in platforms:
         for ros_distro, ubuntu_distro_list in ros_distro_dict.iteritems():
@@ -77,32 +72,16 @@ def main():
     if ubuntu_distro not in supported_ubuntu_distros:
         print "Ubuntu distro %s not supported! Supported Ubuntu distros :" % ubuntu_distro, ', '.join(sorted(supported_ubuntu_distros))
         sys.exit()
-    arch = args[3]
+    arch = args[2]
     if arch not in ARCH:
         print "Architecture %s not supported! Supported architectures: %s" % (arch, ', '.join(ARCH))
         sys.exit()
 
     apt_cacher_proxy = ''
     if len(args) == 5:
-        apt_cacher_proxy = args[4]
+        apt_cacher_proxy = args[3]
 
-    # set up ssh object
-    ssh = paramiko.SSHClient()
-    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    ssh.connect(tarball_host, username=tarball_host_username)
-
-    # get home folder
-    if tarball_dir.startswith('~/'):
-        tarball_dir = tarball_dir.replace('~/', '')
-    if not tarball_dir.startswith('/'):
-        tarball_dir = os.path.join(get_home_folder(ssh), tarball_dir)
-
-    print "\nGet existent chroot tarballs"
-    existent_tarballs = get_existent_tarballs(ssh, tarball_dir)
-    for tar in existent_tarballs:
-        print " ", tar
-
-    print "\nCalculate chroot envs to set up / update"
+    print "\nCalculate chroot envs to setup / update"
     basic_tarball, extended_tarballs = get_tarball_names(platforms, ubuntu_distro, arch)
     print "Basic tarball:"
     print " ", basic_tarball
@@ -153,39 +132,6 @@ def main():
         print "  tarball location:", workspace
         print "  basic tarballs", basic_tarball
         print "  extended tarballs", extended_tarballs
-    
-
- 
-
-def put_tarball(ssh, tar_name, from_location, to_location):
-    print "Copying %s to %s" % (tar_name, ssh.get_host_keys().keys()[0])
-    sys.stdout.flush()
-    try:
-        ftp = ssh.open_sftp()
-        ftp.put(from_location,
-                to_location)
-    except Exception as ex:
-        print ex
-        raise Exception(ex)
-    finally:
-        ftp.close()
-    print "Copied successfully %s to %s" % (tar_name, ssh.get_host_keys().keys()[0])
-    sys.stdout.flush()
-
-
-def get_home_folder(ssh):
-    stdin, stdout, stderr = ssh.exec_command("pwd")
-    return stdout.readline().replace('\n', '')
-
-
-def get_existent_tarballs(ssh, path):
-    file_list = []
-    stdin, stdout, stderr = ssh.exec_command("ls -1 %s" % path)
-    for line in stdout.readlines():
-        line = line.replace('\n', '')
-        file_list.append(line)
-    return file_list
-
 
 def get_tarball_params(name):
     params_dict = {}
