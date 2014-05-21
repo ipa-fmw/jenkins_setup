@@ -3,12 +3,29 @@
 import sys
 import os
 import subprocess
+import traceback
 import paramiko
 import urllib2
 import yaml
 import optparse
 
 ARCH = ['i386', 'amd64']
+
+
+def pbuilder_create(basetgz, tarball_dir, dist, arch):
+    command = "sudo pbuilder --create --basetgz " + tarball_dir + "/" + basetgz + " --distribution " + dist + " --architecture " + arch
+    command = command.split(' ') + ["--components","main restricted universe multiverse"]
+    ret_pbuilder = subprocess.call(command)
+    if ret_pbuilder != 0:
+        print "pbuilder create failed for", basetgz
+        return ret_pbuilder
+    return 0
+    
+
+def pbuilder_execute(basetgz, tarball_dir, script):
+    command = "sudo pbuilder --execute --basetgz " + tarball_dir + "/" + basetgz + " --save-after-exec -- " + script
+    return call(command)
+
 
 
 def main():
@@ -48,11 +65,11 @@ def main():
     supported_ubuntu_distros = []
     for ros_distro_dict in platforms:
         for ros_distro, ubuntu_distro_list in ros_distro_dict.iteritems():
-            if ros_distro != "backports":
-                for supported in ubuntu_distro_list:
+            for supported in ubuntu_distro_list:
+                if supported not in supported_ubuntu_distros:
                     supported_ubuntu_distros.append(supported)
     if ubuntu_distro not in supported_ubuntu_distros:
-        print "Ubuntu distro %s not supported! Supported Ubuntu distros :" % ', '.join(sorted(supported_ubuntu_distros))
+        print "Ubuntu distro %s not supported! Supported Ubuntu distros :" % ubuntu_distro, ', '.join(sorted(supported_ubuntu_distros))
         sys.exit()
     arch = args[3]
     if arch not in ARCH:
@@ -84,149 +101,59 @@ def main():
     print "Basic tarball:"
     print " ", basic_tarball
     print "Extended tarballs: \n %s" % '\n '.join(extended_tarballs)
+    print ""
 
     sys.stdout.flush()
 
     print "\nvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv"
     print "Set up basic chroot %s" % basic_tarball
-    result = process_basic_tarball(ssh, basic_tarball, os.getenv("WORKSPACE"),
-                                   tarball_dir, extended_tarballs, existent_tarballs,
-                                   apt_cacher_proxy)
-    if result != []:
-        errors += result
-
-    call('sudo rm %s' % os.path.join(os.getenv("WORKSPACE"), basic_tarball))
-    print "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"
-
-    if existent_tarballs != []:
-        print "\n,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,"
-        print "Not all chroot tarballs were updated:"
-        for tar in existent_tarballs:
-            print " ", tar
-        print "'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''\n"
-
-    return errors
-
-
-def process_basic_tarball(ssh, basic, local_abs, remote_abs, extended_tarballs, existent_tarballs, apt_cacher_proxy):
-    local_abs_basic = os.path.join(local_abs, basic)
-    remote_abs_basic = os.path.join(remote_abs, basic)
-
-    # get tarball parameter
-    tarball_params = get_tarball_params(basic)
+    #result = process_basic_tarball(ssh, basic_tarball, os.getenv("WORKSPACE"),
+    #                               tarball_dir, extended_tarballs, existent_tarballs,
+    #                               apt_cacher_proxy)
+    
+    
+    
+    # create basic tarball
+    tarball_params = get_tarball_params(basic_tarball)
     print "tarball parameter: ", tarball_params
-
-    sys.stdout.flush()
-
-    if basic in existent_tarballs:
-#        print "Update %s" % basic
-        existent_tarballs.remove(basic)
-
-#        try:
-#            # copy tarball to slave for update process
-#            get_tarball(ssh, basic, remote_abs_basic, local_abs_basic)
-#
-#            # update tarball
-#            call("./pbuilder_calls.sh update %s" % local_abs_basic)
-#
-#        except Exception as ex:
-#            return ["%s: %s" % (basic, ex)]
-#
-#    else:
-    print "Create %s" % basic
-    try:
-        # create tarball on slave
-        call("./pbuilder_calls.sh create %s %s %s"
-             % (local_abs_basic, tarball_params['ubuntu_distro'],
-                tarball_params['arch']))
-
-    except Exception as ex:
-        return ["%s: %s" % (basic, ex)]
-
-    sys.stdout.flush()
-
-    try:
-        put_tarball(ssh, basic, local_abs_basic, remote_abs_basic)
-    except Exception as ex:
-        return ["%s: %s" % (basic, ex)]
-
-    sys.stdout.flush()
-
-    # get all tarballs that extend the basic tarball
-    extending_tarballs = [extend for extend in extended_tarballs if basic in extend]
-    print "Extending tarballs: ", extending_tarballs
-
-    sys.stdout.flush()
-
-    errors = []
-
-    for extend in extending_tarballs:
-        print "\nvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv"
-        print "Extend basic chroot %s to %s" % (basic, extend)
-        local_abs_extend = os.path.join(local_abs, extend)
-        remote_abs_extend = os.path.join(remote_abs, extend)
-        result = process_extend_tarball(ssh, basic, local_abs_basic, extend,
-                                        local_abs_extend, remote_abs_extend,
-                                        existent_tarballs, apt_cacher_proxy)
-        if result != []:
-            errors += result
-        call('sudo rm %s' % local_abs_extend)
-        print "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"
-
-    sys.stdout.flush()
-
-    return errors
-
-
-def process_extend_tarball(ssh, basic, local_abs_basic, extend, local_abs_extend,
-                           remote_abs_extend, existent_tarballs, apt_cacher_proxy):
-    # get tarball parameter
-    tarball_params = get_tarball_params(extend)
-
-    sys.stdout.flush()
-
-    if extend in existent_tarballs:
-        print "Update %s" % extend
-        existent_tarballs.remove(extend)
-
-        try:
-            # copy tarball to executing slave
-            get_tarball(ssh, extend, remote_abs_extend, local_abs_extend)
-
-            # update tarball
-            #call("./pbuilder_calls.sh update %s" % local_abs_extend)
-
-            call("./pbuilder_calls.sh execute %s install_basics.sh %s %s %s"
-                 % (local_abs_extend, tarball_params['ubuntu_distro'],
-                    tarball_params['ros_distro'], apt_cacher_proxy))
-
-        except Exception as ex:
-            return ["%s: %s" % (extend, ex)]
-
+    ret = pbuilder_create(basic_tarball, tarball_dir, tarball_params['ubuntu_distro'], tarball_params['arch'])
+    if ret != 0:
+        print "Creation of basic tarball failed: ", basic_tarball
+        call("rm -rf "+ tarball_dir + "/" + basic_tarball)
+        sys.exit(1)
     else:
-        print "Create %s" % basic
-        try:
-            call("cp %s %s" % (local_abs_basic, local_abs_extend))
+        print "Successful creation of basic tarball: ", basic_tarball
+        # change ownership of tarball
+        command = "sudo chown jenkins:jenkins " + tarball_dir + "/" + basic_tarball
+        call(command)
+    
+    # create extended tarballs 
+    failed_tarballs = []
+    for tarball in extended_tarballs:
+        tarball_params = get_tarball_params(tarball)
+        print "tarball parameter: ", tarball_params
+        call("cp " + tarball_dir + "/" + basic_tarball + " " + tarball_dir + "/" + tarball)
+        ret = pbuilder_execute(tarball, tarball_dir, "./install_basics.sh " + tarball_params['ubuntu_distro'] + " " + tarball_params['ros_distro'] + " " + apt_cacher_proxy)
+        if ret != 0:
+            print "Creation of extended tarball failed: ", tarball
+            call("rm -rf "+ tarball_dir + "/" + tarball)
+            failed_tarballs.append(tarball)
+        else:
+            print "Successful creation of extended tarball: ", tarball
+            # change ownership of tarballs
+            command = "sudo chown jenkins:jenkins " + tarball_dir + "/" + tarball
+            call(command)
 
-            call("./pbuilder_calls.sh execute %s install_basics.sh %s %s %s"
-                 % (local_abs_extend, tarball_params['ubuntu_distro'],
-                    tarball_params['ros_distro'], apt_cacher_proxy))
-
-        except Exception as ex:
-            return ["%s: %s" % (extend, ex)]
-
-    sys.stdout.flush()
-
-    try:
-        put_tarball(ssh, extend, local_abs_extend, remote_abs_extend)
-    except Exception as ex:
-        return ["%s: %s" % (extend, ex)]
-
-    return []
-
+    if len(failed_tarballs) != 0:
+        print "Not all tarballs were generated successfully. Failed tarballs: ", failed_tarballs
+        sys.exit(1)
+    
+    sys.exit()
+ 
 
 def put_tarball(ssh, tar_name, from_location, to_location):
     print "Copying %s to %s" % (tar_name, ssh.get_host_keys().keys()[0])
+    sys.stdout.flush()
     try:
         ftp = ssh.open_sftp()
         ftp.put(from_location,
@@ -237,20 +164,7 @@ def put_tarball(ssh, tar_name, from_location, to_location):
     finally:
         ftp.close()
     print "Copied successfully %s to %s" % (tar_name, ssh.get_host_keys().keys()[0])
-
-
-def get_tarball(ssh, tar_name, from_location, to_location):
-    print "Copying %s from %s" % (tar_name, ssh.get_host_keys().keys()[0])
-    try:
-        ftp = ssh.open_sftp()
-        ftp.get(from_location,
-                to_location)
-    except Exception as ex:
-        print ex
-        raise Exception(ex)
-    finally:
-        ftp.close()
-    print "Copied successfully %s from %s" % (tar_name, ssh.get_host_keys().keys()[0])
+    sys.stdout.flush()
 
 
 def get_home_folder(ssh):
@@ -291,22 +205,25 @@ def get_tarball_names(platforms, ubuntu_distro, arch):
     return basic_tarball, sorted(extended_tarballs)
 
 
-def call_with_list(command, envir=None, verbose=True):
-    print "\n********************************************************************"
+def call_with_list(command, envir=None, verbose=False):
+    """
+    Call a shell command as list.
+
+    @param command: the command to call
+    @type  command: list
+    @param envir: mapping of env variables
+    @type  envir: dict
+    @param verbose: print all
+    @type  verbose: bool
+
+    @return param: command output
+    @return type: str
+
+    @raise type: BuildException
+    """
     print "Executing command '%s'" % ' '.join(command)
-    print "********************************************************************"
-    helper = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True, env=envir)
-    res, err = helper.communicate()
-    if verbose:
-        print str(res)
-    print str(err)
-    if helper.returncode != 0:
-        msg = "Failed to execute command '%s'" % command
-        print "\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-        print "/!\  %s" % msg
-        print "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"
-        raise BuildException(msg)
-    return res
+    return subprocess.call(command)
+    #helper = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True, env=envir)
 
 
 def call(command, envir=None, verbose=True):
@@ -322,23 +239,8 @@ if __name__ == "__main__":
     try:
         result = main()
 
-        if result != []:
-            print "\n,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,"
-            print "Some errors occured. The following chroot environments couldn't be set up:"
-            for error in result:
-                print " ", error
-            print "For further information please check the output above."
-            print "'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''\n"
-            sys.exit(1)
-        else:
-            print "\n,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,"
-            print "Chroot tarball update finished cleanly"
-            print "'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''\n"
-
-    except BuildException as ex:
-        print ex
-
     except Exception as ex:
+        print traceback.format_exc()
         print "\n,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,"
         print "Update script failed. Check console output for details."
         print "'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''\n"
