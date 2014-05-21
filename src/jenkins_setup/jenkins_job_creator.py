@@ -801,13 +801,13 @@ class BuildJob(JenkinsJob):
 
         # set copy-to-slave plugin parameters
         copy_to_slave = self.job_config_params['copy_to_slave']
-        copy_to_slave = copy_to_slave.replace('@(BASETGZ)', '${ubuntu_distro}__${arch}__${ros_distro}')
+        copy_to_slave = copy_to_slave.replace('@(BASETGZ)', '${ubuntu_distro}__${arch}__${ros_distro}.tgz')
         self.params['COPY_TO_SLAVE'] = copy_to_slave
         
         # set copy-to-slave plugin parameters for copying back to master
         copy_to_master = self.job_config_params['copy_to_master']
         copy_to_master = copy_to_master.replace('@(SERVERNAME)', self.pipe_inst.server_name)
-        copy_to_master = copy_to_master.replace('@(BASETGZ)', self.pipe_inst.user_name + '__${ubuntu_distro}__${arch}__${ros_distro}__${REPOSITORY}')
+        copy_to_master = copy_to_master.replace('@(BASETGZ)', self.pipe_inst.user_name + '__${ubuntu_distro}__${arch}__${ros_distro}__${REPOSITORY}.tgz')
         self.params['COPY_TO_MASTER'] = copy_to_master
 
         # set static code analysis publisher
@@ -1005,7 +1005,7 @@ class TestJob(JenkinsJob):
 
         # set copy-to-slave plugin parameters
         copy_to_slave = self.job_config_params['copy_to_slave']
-        copy_to_slave = copy_to_slave.replace('@(BASETGZ)', self.pipe_inst.user_name + '__${ubuntu_distro}__${arch}__${ros_distro}__${REPOSITORY}')
+        copy_to_slave = copy_to_slave.replace('@(BASETGZ)', self.pipe_inst.user_name + '__${ubuntu_distro}__${arch}__${ros_distro}__${REPOSITORY}.tgz')
         self.params['COPY_TO_SLAVE'] = copy_to_slave
 
         # junit test result location
@@ -1433,7 +1433,7 @@ class DeploymentJob(JenkinsJob):
         # set copy-to-slave plugin parameters
         copy_to_slave = self.job_config_params['copy_to_slave']
         copy_to_slave = copy_to_slave.replace('@(SERVERNAME)', 'fmw-xps') # FIXME: replace servername with real data
-        copy_to_slave = copy_to_slave.replace('@(BASETGZ)', 'ipa-fmw__precise__amd64__hydro__fiad_scenario') # FIXME: replace basetgz with real data
+        copy_to_slave = copy_to_slave.replace('@(BASETGZ)', 'ipa-fmw__precise__amd64__hydro__fiad_scenario.tgz') # FIXME: replace basetgz with real data
         self.params['COPY_TO_SLAVE'] = copy_to_slave
 
         # set execute shell

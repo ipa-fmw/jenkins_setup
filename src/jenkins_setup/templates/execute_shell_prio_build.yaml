@@ -19,9 +19,9 @@ if [ -z "$ros_distro" ]; then
 
 fi
 
-new_basetgz=${ubuntu_distro}__${arch}__${ROS_DISTRO}
+new_basetgz=${ubuntu_distro}__${arch}__${ROS_DISTRO}.tgz
 
-basetgz=@(USERNAME)__${new_basetgz}__${repository}
+basetgz=ipa-jenkins__${ubuntu_distro}__${arch}__${ROS_DISTRO}__${repository}.tgz
 
 echo "Copying $new_basetgz to $WORKSPACE/chroot_tarballs/in_use/$basetgz"
 
