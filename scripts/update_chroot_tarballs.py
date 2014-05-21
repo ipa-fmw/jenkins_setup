@@ -39,7 +39,7 @@ def main():
     parser = optparse. OptionParser()
     (options, args) = parser.parse_args()
 
-    if len(args) < 4:
+    if len(args) < 3:
         print "Usage: %s target_yaml_url ubuntu_distro architecture [apt_cacher_proxy_address]" % (sys.argv[0])
         sys.exit()
 
