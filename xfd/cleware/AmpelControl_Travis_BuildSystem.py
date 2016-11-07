@@ -119,7 +119,6 @@ def extract_travis_build_states(path, t_public, t_private):
 
     build_states = []
     for data in build_query_data:
-        print "repo:", data['user'] + '/' + data['repo']
         invalid_state = False
         # try public server
         try:
@@ -145,6 +144,8 @@ def extract_travis_build_states(path, t_public, t_private):
             state_store.append('yellow_anime')
             state_store.append('green_anime')
             return state_store
+
+        print "repo:", data['user'] + '/' + data['repo'], "(", data['branch'], ")", branch.state
 
         # check PRs
         gh = Github(token=options.token, user=data['user'], repo=data['repo'])
